@@ -11,6 +11,8 @@
     <modules>
         <module>leader-election</module>
         <module>watchers</module>
+        <module>flakyworker</module>
+        <module>autohealer</module>
     </modules>
 
     <properties>
