@@ -1,4 +1,4 @@
-package com.guvenkarabulut;
+package com.guvenkarabulut.management;
 
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
@@ -9,28 +9,24 @@ import java.util.List;
 
 
 public class LeaderElection implements Watcher {
-    private static final String ZOOKEEPER_ADDRESS="localhost:2181";
     private static final String ELECTION_NAMESPACE="/election";
-
-    private static final int SESSION_TIMEOUT=3000;
     private ZooKeeper zooKeeper;
     private String currentZnodeName;
-    public static void main(String[] args) throws IOException, InterruptedException, KeeperException {
-        LeaderElection leaderEelction = new LeaderElection();
-        leaderEelction.connectToZookeeper();
-        leaderEelction.volunteerForLeaderShip();
-        leaderEelction.reelectLeader();
-        leaderEelction.run();
-        leaderEelction.close();
-        System.out.println("Disconnected from Zookeeper");
+    private final OnElectionCallBack onElectionCallBack;
+
+    public LeaderElection (ZooKeeper zooKeeper,OnElectionCallBack onElectionCallBack){
+        this.zooKeeper=zooKeeper;
+        this.onElectionCallBack=onElectionCallBack;
     }
 
-    public void connectToZookeeper() throws IOException {
-        this.zooKeeper=new ZooKeeper(ZOOKEEPER_ADDRESS,SESSION_TIMEOUT,this);
-    }
+
     public void volunteerForLeaderShip() throws InterruptedException, KeeperException {
         String znodePrefix = ELECTION_NAMESPACE + "/c_";
-        String znodeFullPath=zooKeeper.create(znodePrefix,new byte[]{},ZooDefs.Ids.OPEN_ACL_UNSAFE,CreateMode.EPHEMERAL_SEQUENTIAL);
+        String znodeFullPath=zooKeeper
+                .create(znodePrefix,
+                        new byte[]{},
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                        CreateMode.EPHEMERAL_SEQUENTIAL);
         System.out.println("znode name "+znodeFullPath);
         this.currentZnodeName=znodeFullPath.replace(ELECTION_NAMESPACE+"/","");
     }
@@ -44,6 +40,7 @@ public class LeaderElection implements Watcher {
 
             if (smallestChild.equals(currentZnodeName)) {
                 System.out.println("I am the leader");
+                onElectionCallBack.onElectToBeLeader();
                 return;
             } else {
                 System.out.println("I am not the leader");
@@ -52,33 +49,12 @@ public class LeaderElection implements Watcher {
                 predecessorStat = zooKeeper.exists(ELECTION_NAMESPACE + "/" + predecessorZnodeName, this);
             }
         }
+        onElectionCallBack.onWorker();
         System.out.println("Watching znode, " + predecessorZnodeName);
 
     }
-
-
-    public void run() throws InterruptedException{
-        synchronized (zooKeeper){
-            zooKeeper.wait();
-        }
-    }
-    public void close()throws InterruptedException{
-        zooKeeper.close();
-    }
-    @Override
     public void process(WatchedEvent watchedEvent) {
         switch (watchedEvent.getType()) {
-            case None -> {
-                switch (watchedEvent.getState()) {
-                    case SyncConnected -> System.out.println("Successfully connected ZooKeeper");
-                    case Expired -> System.out.println("Session expired");
-                    case Disconnected -> System.out.println("Disconnected from ZooKeeper");
-                    case AuthFailed -> System.out.println("Authentication failed");
-                    case SaslAuthenticated -> System.out.println("SASL authenticated");
-                    case ConnectedReadOnly -> System.out.println("Connected as read-only");
-                    default -> System.out.println("Unknown state: " + watchedEvent.getState());
-                }
-            }
             case NodeDeleted -> {
                 try {
                     reelectLeader();
@@ -88,6 +64,8 @@ public class LeaderElection implements Watcher {
             }
 
         }
-
     }
+
+
+
 }

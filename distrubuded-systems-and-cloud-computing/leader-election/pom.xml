@@ -49,7 +49,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.guvenkarabulut.LeaderElection</mainClass>
+                            <mainClass>com.guvenkarabulut.management.LeaderElection</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
